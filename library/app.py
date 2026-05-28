@@ -501,26 +501,17 @@ def ensure_db():
         init_db()
         _db_initialised = True
 
-# ── Admin Route: Insert 500 Books ────────────────────────────────────────────
+# ── Admin Route: Clear and Insert 500 Books ──────────────────────────────────
 @app.route('/admin/insert-500-books')
 def insert_500_books():
-    """Insert 500 books into the database"""
+    """Clear existing books and insert all 500 books"""
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # Check if books already exist
-        cur.execute("SELECT COUNT(*) as count FROM books")
-        result = cur.fetchone()
-        existing_count = result[0] if result else 0
-        
-        if existing_count > 0:
-            conn.close()
-            return jsonify({
-                'status': 'info',
-                'message': f'Database already contains {existing_count} books. Skipping insertion.',
-                'books_count': existing_count
-            }), 200
+        # Clear existing books
+        cur.execute("DELETE FROM books")
+        conn.commit()
         
         # Insert all 500 books
         inserted = 0
@@ -539,8 +530,9 @@ def insert_500_books():
         
         return jsonify({
             'status': 'success',
-            'message': f'Successfully inserted {inserted} books into the database!',
-            'books_count': inserted
+            'message': f'✅ Successfully inserted {inserted} books into the database!',
+            'books_count': inserted,
+            'categories': '50 Classic Literature, 50 Sci-Fi, 50 Fantasy, 50 Mystery, 50 Non-Fiction, 50 Self-Help, 50 History, 50 Science, 50 Psychology, 50 Romance'
         }), 200
         
     except mysql.connector.Error as e:
