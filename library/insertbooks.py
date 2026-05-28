@@ -1,13 +1,26 @@
 import mysql.connector
-import hashlib
+import os
+import time
 
-# ── Same DB config as app.py ─────────────────────────────────────────────────
+# ── Railway MySQL Configuration ──────────────────────────────────────────────
+# Uses environment variables injected by Railway
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'password',   # ← Change this to your MySQL password
-    'database': 'library_db'
+    'host':     os.environ.get('MYSQL_HOST',     'localhost'),
+    'port':     int(os.environ.get('MYSQL_PORT', 3306)),
+    'user':     os.environ.get('MYSQL_USER',     'root'),
+    'password': os.environ.get('MYSQL_PASSWORD', ''),
+    'database': os.environ.get('MYSQL_DATABASE', 'library_db')
 }
+
+print("=" * 70)
+print("📚 LIBRARY MANAGEMENT - 500 BOOKS INSERTION SCRIPT")
+print("=" * 70)
+print(f"\n🔗 Database Configuration:")
+print(f"   Host:     {DB_CONFIG['host']}")
+print(f"   Port:     {DB_CONFIG['port']}")
+print(f"   User:     {DB_CONFIG['user']}")
+print(f"   Database: {DB_CONFIG['database']}")
+print()
 
 # ── 500 Sample Books ─────────────────────────────────────────────────────────
 books = [
@@ -62,7 +75,7 @@ books = [
     ("Cat's Cradle", "Kurt Vonnegut", 4),
     ("Breakfast of Champions", "Kurt Vonnegut", 3),
     ("The Bell Jar", "Sylvia Plath", 5),
-
+    
     # Science Fiction
     ("Dune", "Frank Herbert", 6),
     ("Dune Messiah", "Frank Herbert", 5),
@@ -114,7 +127,7 @@ books = [
     ("Frankenstein", "Mary Shelley", 7),
     ("The Island of Doctor Moreau", "H.G. Wells", 5),
     ("Old Man's War", "John Scalzi", 4),
-
+    
     # Fantasy
     ("The Hobbit", "J.R.R. Tolkien", 9),
     ("The Fellowship of the Ring", "J.R.R. Tolkien", 8),
@@ -166,7 +179,7 @@ books = [
     ("Eragon", "Christopher Paolini", 6),
     ("Eldest", "Christopher Paolini", 5),
     ("Brisingr", "Christopher Paolini", 4),
-
+    
     # Mystery & Thriller
     ("The Hound of the Baskervilles", "Arthur Conan Doyle", 7),
     ("A Study in Scarlet", "Arthur Conan Doyle", 6),
@@ -218,7 +231,7 @@ books = [
     ("Casino Royale", "Ian Fleming", 6),
     ("Live and Let Die", "Ian Fleming", 5),
     ("Moonraker", "Ian Fleming", 5),
-
+    
     # Non-Fiction
     ("Sapiens", "Yuval Noah Harari", 8),
     ("Homo Deus", "Yuval Noah Harari", 7),
@@ -270,7 +283,7 @@ books = [
     ("The Elegant Universe", "Brian Greene", 5),
     ("The Fabric of the Cosmos", "Brian Greene", 4),
     ("Surely You're Joking, Mr. Feynman!", "Richard Feynman", 7),
-
+    
     # Self-Help & Personal Development
     ("How to Win Friends and Influence People", "Dale Carnegie", 9),
     ("Think and Grow Rich", "Napoleon Hill", 8),
@@ -322,13 +335,12 @@ books = [
     ("Shoe Dog", "Phil Knight", 7),
     ("Losing My Virginity", "Richard Branson", 5),
     ("Elon Musk", "Ashlee Vance", 7),
-
+    
     # History
     ("Guns, Germs, and Steel", "Jared Diamond", 7),
     ("The Collapse of Complex Societies", "Joseph Tainter", 4),
     ("The Rise and Fall of the Third Reich", "William L. Shirer", 5),
     ("The Second World War", "Winston Churchill", 5),
-    ("The Diary of a Young Girl", "Anne Frank", 8),
     ("Night", "Elie Wiesel", 8),
     ("The Hiding Place", "Corrie ten Boom", 6),
     ("Unbroken", "Laura Hillenbrand", 7),
@@ -354,7 +366,7 @@ books = [
     ("Das Kapital", "Karl Marx", 5),
     ("The Origin of Totalitarianism", "Hannah Arendt", 5),
     ("The Gulag Archipelago", "Aleksandr Solzhenitsyn", 4),
-
+    
     # Science & Technology
     ("The Code Book", "Simon Singh", 6),
     ("The Information", "James Gleick", 5),
@@ -386,7 +398,7 @@ books = [
     ("Code Complete", "Steve McConnell", 5),
     ("Refactoring", "Martin Fowler", 5),
     ("Working Effectively with Legacy Code", "Michael C. Feathers", 4),
-
+    
     # Psychology
     ("The Interpretation of Dreams", "Sigmund Freud", 5),
     ("Beyond Good and Evil", "Friedrich Nietzsche", 6),
@@ -418,9 +430,8 @@ books = [
     ("Maybe You Should Talk to Someone", "Lori Gottlieb", 6),
     ("The Drama of the Gifted Child", "Alice Miller", 5),
     ("Running on Empty", "Jonice Webb", 5),
-
+    
     # Romance & Contemporary Fiction
-    ("Pride and Prejudice", "Jane Austen", 7),
     ("Sense and Sensibility", "Jane Austen", 6),
     ("Emma", "Jane Austen", 6),
     ("Persuasion", "Jane Austen", 5),
@@ -450,7 +461,7 @@ books = [
     ("Verity", "Colleen Hoover", 7),
     ("November 9", "Colleen Hoover", 6),
     ("Confess", "Colleen Hoover", 6),
-
+    
     # Indian Literature & Authors
     ("The God of Small Things", "Arundhati Roy", 7),
     ("The Ministry of Utmost Happiness", "Arundhati Roy", 5),
@@ -482,91 +493,60 @@ books = [
     ("The Rozabal Line", "Ashwin Sanghi", 5),
     ("Chanakya's Chant", "Ashwin Sanghi", 6),
     ("The Krishna Key", "Ashwin Sanghi", 5),
-
-    # Business & Economics
-    ("The Lean Six Sigma Pocket Toolbook", "Michael George", 4),
-    ("Thinking in Systems", "Donella H. Meadows", 6),
-    ("The Fifth Discipline", "Peter M. Senge", 5),
-    ("Competitive Strategy", "Michael E. Porter", 5),
-    ("Blue Ocean Strategy", "W. Chan Kim", 6),
-    ("Crossing the Chasm", "Geoffrey A. Moore", 5),
-    ("The Innovator's Dilemma", "Clayton M. Christensen", 6),
-    ("The Innovator's Solution", "Clayton M. Christensen", 5),
-    ("Measure What Matters", "John Doerr", 6),
-    ("High Output Management", "Andrew S. Grove", 5),
-    ("Only the Paranoid Survive", "Andrew S. Grove", 4),
-    ("The Hard Thing About Hard Things", "Ben Horowitz", 6),
-    ("Venture Deals", "Brad Feld", 5),
-    ("The Mom Test", "Rob Fitzpatrick", 6),
-    ("Sprint", "Jake Knapp", 6),
-    ("Hooked", "Nir Eyal", 6),
-    ("Indistractable", "Nir Eyal", 5),
-    ("Rework", "Jason Fried", 7),
-    ("Remote", "Jason Fried", 6),
-    ("It Doesn't Have to Be Crazy at Work", "Jason Fried", 5),
-
-    # Health & Medicine
-    ("Why We Sleep", "Matthew Walker", 8),
-    ("The Circadian Code", "Satchin Panda", 6),
-    ("Lifespan", "David Sinclair", 6),
-    ("The Plant Paradox", "Steven R. Gundry", 5),
-    ("How Not to Die", "Michael Greger", 7),
-    ("The China Study", "T. Colin Campbell", 6),
-    ("Grain Brain", "David Perlmutter", 5),
-    ("Brain Maker", "David Perlmutter", 5),
-    ("The Hormone Cure", "Sara Gottfried", 4),
-    ("The UltraMind Solution", "Mark Hyman", 4),
-
-    # Environment & Nature
-    ("Silent Spring", "Rachel Carson", 7),
-    ("The Sixth Extinction", "Elizabeth Kolbert", 6),
-    ("This Changes Everything", "Naomi Klein", 5),
-    ("The Uninhabitable Earth", "David Wallace-Wells", 6),
-    ("Braiding Sweetgrass", "Robin Wall Kimmerer", 7),
-    ("The Hidden Life of Trees", "Peter Wohlleben", 7),
-    ("The Overstory", "Richard Powers", 6),
-    ("A Field Guide to Getting Lost", "Rebecca Solnit", 5),
-    ("The Wild Places", "Robert Macfarlane", 5),
-    ("Underland", "Robert Macfarlane", 5),
-
-    # Short Stories & Poetry
-    ("The Complete Short Stories", "Ernest Hemingway", 5),
-    ("Ficciones", "Jorge Luis Borges", 6),
-    ("Labyrinths", "Jorge Luis Borges", 5),
-    ("Everything That Rises Must Converge", "Flannery O'Connor", 4),
-    ("The Complete Stories", "Flannery O'Connor", 4),
-    ("Interpreter of Maladies", "Jhumpa Lahiri", 6),
-    ("The Lottery", "Shirley Jackson", 5),
-    ("The Jungle Book", "Rudyard Kipling", 7),
-    ("Just So Stories", "Rudyard Kipling", 6),
-    ("Gitanjali", "Rabindranath Tagore", 8),
-    ("Selected Poems", "Rabindranath Tagore", 7),
 ]
 
 def insert_books():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cur  = conn.cursor()
-    inserted = 0
-    skipped  = 0
-
-    for title, author, quantity in books:
+    """Insert 500 books into the database"""
+    max_retries = 5
+    retry_delay = 2
+    
+    for attempt in range(1, max_retries + 1):
         try:
-            cur.execute(
-                "INSERT INTO books (title, author, quantity) VALUES (%s, %s, %s)",
-                (title, author, quantity)
-            )
-            inserted += 1
-        except mysql.connector.IntegrityError:
-            skipped += 1
+            print(f"🔄 Connection Attempt {attempt}/{max_retries}...")
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            
+            print("✅ Connected to MySQL successfully!")
+            print(f"\n📖 Inserting {len(books)} books into the database...\n")
+            
+            # Insert books in batches
+            batch_size = 50
+            for i in range(0, len(books), batch_size):
+                batch = books[i:i+batch_size]
+                for title, author, quantity in batch:
+                    cursor.execute(
+                        "INSERT INTO books (title, author, quantity) VALUES (%s, %s, %s)",
+                        (title, author, quantity)
+                    )
+                conn.commit()
+                print(f"   ✓ Inserted {min(i+batch_size, len(books))}/{len(books)} books")
+            
+            cursor.close()
+            conn.close()
+            
+            print("\n" + "=" * 70)
+            print("✅ SUCCESS! All 500 books inserted successfully!")
+            print("=" * 70)
+            print(f"\n📊 Summary:")
+            print(f"   Total Books Inserted: {len(books)}")
+            print(f"   Database: {DB_CONFIG['database']}")
+            print(f"   Table: books")
+            print(f"\n🎉 Your library is now ready to use!")
+            return True
+            
+        except mysql.connector.Error as e:
+            print(f"❌ Attempt {attempt} failed: {e}")
+            if attempt < max_retries:
+                print(f"   Retrying in {retry_delay} seconds...\n")
+                time.sleep(retry_delay)
+            else:
+                print(f"\n❌ Failed to insert books after {max_retries} attempts")
+                return False
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            return False
 
-    conn.commit()
-    conn.close()
-    print(f"\n✅ Done!")
-    print(f"   📚 Books inserted : {inserted}")
-    print(f"   ⏭️  Already existed : {skipped}")
-    print(f"   📊 Total in list   : {len(books)}")
-    print(f"\nOpen http://127.0.0.1:5000 and login as Staff to see all books!")
+if __name__ == "__main__":
+    success = insert_books()
+    exit(0 if success else 1)
 
-if __name__ == '__main__':
-    print("📚 Inserting books into LibraVault database...")
-    insert_books()
