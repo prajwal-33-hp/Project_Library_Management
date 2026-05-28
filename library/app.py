@@ -7,6 +7,8 @@ import time
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'libravault2024')
 
+_db_initialised = False
+
 # ── Database Configuration ──────────────────────────────────────────────────
 DB_CONFIG = {
     'host':     os.environ.get('MYSQL_HOST',     'localhost'),
@@ -72,6 +74,14 @@ def init_db():
 
     print("Warning: could not initialise the database after "
           f"{max_attempts} attempts. The app will start anyway.")
+
+# ── Lazy DB Init ─────────────────────────────────────────────────────────────
+@app.before_request
+def ensure_db():
+    global _db_initialised
+    if not _db_initialised:
+        init_db()
+        _db_initialised = True
 
 # ── Auth Routes ──────────────────────────────────────────────────────────────
 @app.route('/', methods=['GET', 'POST'])
@@ -266,6 +276,5 @@ def delete_book(book_id):
     return redirect(url_for('staff_books'))
 
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
