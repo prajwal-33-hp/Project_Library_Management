@@ -274,10 +274,12 @@ def delete_book(book_id):
         flash('Database error: unable to delete book. Please try again later.')
         app.logger.error(f'Delete book DB error: {e}')
     return redirect(url_for('staff_books'))
+        @app.route("/health")
+def health():
+    return "OK"
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-    @app.route("/health")
-def health():
-    return "OK"
+  
