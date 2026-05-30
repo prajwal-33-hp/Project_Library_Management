@@ -1,15 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+#!/usr/bin/env python3
+"""
+Initialize database with 500 sample books.
+Run this once to populate the library.
+"""
 import mysql.connector
-import hashlib
 import os
 import time
 
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'libravault2024')
-
-_db_initialised = False
-
-# ── Database Configuration ──────────────────────────────────────────────────
+# Database Configuration
 DB_CONFIG = {
     'host':     os.environ.get('MYSQL_HOST',     'localhost'),
     'port': int(os.environ.get('MYSQL_PORT',     3306)),
@@ -18,13 +16,7 @@ DB_CONFIG = {
     'database': os.environ.get('MYSQL_DATABASE', 'library_db')
 }
 
-def get_db():
-    return mysql.connector.connect(**DB_CONFIG)
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-# ── 500 Sample Books ──────────────────────────────────────────────────────────
+# 500 Sample Books
 BOOKS = [
     # Classic Literature (50 books)
     ("The Great Gatsby", "F. Scott Fitzgerald", 5),
@@ -441,23 +433,27 @@ BOOKS = [
     ("Pratijnayaugandharayana", "Bhasa", 3),
 ]
 
-# ── Init DB ──────────────────────────────────────────────────────────────────
-def init_db():
+def init_database():
+    """Initialize database and insert 500 books."""
     max_attempts = 5
     delay = 2
-
+    
     for attempt in range(1, max_attempts + 1):
         try:
+            # Create database if not exists
             cfg = DB_CONFIG.copy()
-            cfg.pop('database')
+            cfg.pop('database', None)
             conn = mysql.connector.connect(**cfg)
             cur = conn.cursor()
             cur.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
             conn.commit()
             conn.close()
-
-            conn = get_db()
+            
+            # Connect to database
+            conn = mysql.connector.connect(**DB_CONFIG)
             cur = conn.cursor()
+            
+            # Create tables
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS students (
                     student_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -482,232 +478,34 @@ def init_db():
             """)
             conn.commit()
             
-            # Check if books exist
+            # Check if books already exist
             cur.execute("SELECT COUNT(*) FROM books")
             count = cur.fetchone()[0]
             
             if count == 0:
-                print(f"[DB] Inserting {len(BOOKS)} books...")
+                print(f"Inserting {len(BOOKS)} books...")
                 cur.executemany(
                     "INSERT INTO books (title, author, quantity) VALUES (%s, %s, %s)",
                     BOOKS
                 )
                 conn.commit()
-                print(f"[DB] ✓ Inserted {len(BOOKS)} books!")
+                print(f"✓ Successfully inserted {len(BOOKS)} books!")
             else:
-                print(f"[DB] ✓ Database already has {count} books.")
+                print(f"✓ Database already has {count} books. Skipping insertion.")
             
             conn.close()
-            print(f"[DB] ✓ Database initialised successfully on attempt {attempt}.")
-            return
+            print("✓ Database initialization complete!")
+            return True
+            
         except mysql.connector.Error as e:
-            print(f"[DB] Init attempt {attempt}/{max_attempts} failed: {e}")
+            print(f"Attempt {attempt}/{max_attempts} failed: {e}")
             if attempt < max_attempts:
+                print(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
-
-    print("[DB] Warning: could not initialise the database after all attempts.")
-
-# ── Lazy DB Init ─────────────────────────────────────────────────────────────
-@app.before_request
-def ensure_db():
-    global _db_initialised
-    if not _db_initialised:
-        init_db()
-        _db_initialised = True
-
-# ── Auth Routes ──────────────────────────────────────────────────────────────
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = hash_password(request.form['password'])
-        role     = request.form['role']
-        table    = 'students' if role == 'student' else 'staff'
-        id_col   = 'student_id' if role == 'student' else 'staff_id'
-
-        try:
-            conn = get_db()
-            cur  = conn.cursor(dictionary=True)
-            cur.execute(f"SELECT * FROM {table} WHERE username=%s AND password=%s", (username, password))
-            user = cur.fetchone()
-            conn.close()
-
-            if user:
-                session['user']     = username
-                session['role']     = role
-                session['user_id']  = user[id_col]
-                return redirect(url_for('student_dashboard' if role == 'student' else 'staff_dashboard'))
-            flash('Invalid credentials. Please try again.')
-        except mysql.connector.Error as e:
-            flash(f'Database error: unable to process login. Please try again later.')
-            app.logger.error(f'Login DB error: {e}')
-    return render_template('login.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = hash_password(request.form['password'])
-        role     = request.form['role']
-        table    = 'students' if role == 'student' else 'staff'
-
-        conn = None
-        try:
-            conn = get_db()
-            cur  = conn.cursor()
-            cur.execute(f"INSERT INTO {table} (username, password) VALUES (%s, %s)", (username, password))
-            conn.commit()
-            flash('Registration successful! Please login.')
-            return redirect(url_for('login'))
-        except mysql.connector.IntegrityError:
-            flash('Username already exists. Choose another.')
-        except mysql.connector.Error as e:
-            flash('Database error: unable to complete registration. Please try again later.')
-            app.logger.error(f'Register DB error: {e}')
-        finally:
-            if conn:
-                conn.close()
-    return render_template('register.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-# ── Student Routes ───────────────────────────────────────────────────────────
-@app.route('/student/dashboard')
-def student_dashboard():
-    if session.get('role') != 'student':
-        return redirect(url_for('login'))
-    return render_template('student_dashboard.html', user=session['user'])
-
-@app.route('/student/books')
-def student_books():
-    if session.get('role') != 'student':
-        return redirect(url_for('login'))
-    query = request.args.get('q', '').strip()
-    try:
-        conn = get_db()
-        cur  = conn.cursor(dictionary=True)
-        if query:
-            cur.execute("SELECT * FROM books WHERE title LIKE %s OR author LIKE %s",
-                        (f'%{query}%', f'%{query}%'))
-        else:
-            cur.execute("SELECT * FROM books ORDER BY title")
-        books = cur.fetchall()
-        conn.close()
-    except mysql.connector.Error as e:
-        flash('Database error: unable to retrieve books. Please try again later.')
-        app.logger.error(f'Student books DB error: {e}')
-        books = []
-    return render_template('books.html', books=books, query=query, role='student')
-
-# ── Staff Routes ─────────────────────────────────────────────────────────────
-@app.route('/staff/dashboard')
-def staff_dashboard():
-    if session.get('role') != 'staff':
-        return redirect(url_for('login'))
-    try:
-        conn  = get_db()
-        cur   = conn.cursor(dictionary=True)
-        cur.execute("SELECT COUNT(*) AS total FROM books")
-        stats = cur.fetchone()
-        conn.close()
-    except mysql.connector.Error as e:
-        flash('Database error: unable to load dashboard stats. Please try again later.')
-        app.logger.error(f'Staff dashboard DB error: {e}')
-        stats = {'total': 'N/A'}
-    return render_template('staff_dashboard.html', user=session['user'], stats=stats)
-
-@app.route('/staff/books')
-def staff_books():
-    if session.get('role') != 'staff':
-        return redirect(url_for('login'))
-    query = request.args.get('q', '').strip()
-    try:
-        conn = get_db()
-        cur  = conn.cursor(dictionary=True)
-        if query:
-            cur.execute("SELECT * FROM books WHERE title LIKE %s OR author LIKE %s",
-                        (f'%{query}%', f'%{query}%'))
-        else:
-            cur.execute("SELECT * FROM books ORDER BY title")
-        books = cur.fetchall()
-        conn.close()
-    except mysql.connector.Error as e:
-        flash('Database error: unable to retrieve books. Please try again later.')
-        app.logger.error(f'Staff books DB error: {e}')
-        books = []
-    return render_template('books.html', books=books, query=query, role='staff')
-
-@app.route('/staff/add_book', methods=['GET', 'POST'])
-def add_book():
-    if session.get('role') != 'staff':
-        return redirect(url_for('login'))
-    if request.method == 'POST':
-        title    = request.form['title'].strip()
-        author   = request.form['author'].strip()
-        quantity = int(request.form['quantity'])
-        try:
-            conn = get_db()
-            cur  = conn.cursor()
-            cur.execute("INSERT INTO books (title, author, quantity) VALUES (%s, %s, %s)",
-                        (title, author, quantity))
-            conn.commit()
-            conn.close()
-            flash('Book added successfully!')
-            return redirect(url_for('staff_books'))
-        except mysql.connector.Error as e:
-            flash('Database error: unable to add book. Please try again later.')
-            app.logger.error(f'Add book DB error: {e}')
-    return render_template('add_book.html')
-
-@app.route('/staff/edit_book/<int:book_id>', methods=['GET', 'POST'])
-def edit_book(book_id):
-    if session.get('role') != 'staff':
-        return redirect(url_for('login'))
-    conn = None
-    try:
-        conn = get_db()
-        cur  = conn.cursor(dictionary=True)
-        if request.method == 'POST':
-            title    = request.form['title'].strip()
-            author   = request.form['author'].strip()
-            quantity = int(request.form['quantity'])
-            cur.execute("UPDATE books SET title=%s, author=%s, quantity=%s WHERE book_id=%s",
-                        (title, author, quantity, book_id))
-            conn.commit()
-            conn.close()
-            flash('Book updated successfully!')
-            return redirect(url_for('staff_books'))
-        cur.execute("SELECT * FROM books WHERE book_id=%s", (book_id,))
-        book = cur.fetchone()
-        conn.close()
-    except mysql.connector.Error as e:
-        flash('Database error: unable to edit book. Please try again later.')
-        app.logger.error(f'Edit book DB error: {e}')
-        if conn:
-            conn.close()
-        return redirect(url_for('staff_books'))
-    return render_template('add_book.html', book=book, edit=True)
-
-@app.route('/staff/delete_book/<int:book_id>', methods=['POST'])
-def delete_book(book_id):
-    if session.get('role') != 'staff':
-        return redirect(url_for('login'))
-    try:
-        conn = get_db()
-        cur  = conn.cursor()
-        cur.execute("DELETE FROM books WHERE book_id=%s", (book_id,))
-        conn.commit()
-        conn.close()
-        flash('Book deleted.')
-    except mysql.connector.Error as e:
-        flash('Database error: unable to delete book. Please try again later.')
-        app.logger.error(f'Delete book DB error: {e}')
-    return redirect(url_for('staff_books'))
+    
+    print("✗ Failed to initialize database after all attempts.")
+    return False
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    init_database()
 
