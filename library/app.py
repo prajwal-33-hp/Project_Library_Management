@@ -12,11 +12,11 @@ _db_initialised = False
 # ── Database Configuration ──────────────────────────────────────────────────
 # --- Database Configuration ---
 DB_CONFIG = {
-    'host': os.environ.get('MYSQLHOST', 'localhost'),
+    'host': os.environ.get('MYSQLHOST'),
     'port': int(os.environ.get('MYSQLPORT', 3306)),
     'user': os.environ.get('MYSQLUSER', 'root'),
     'password': os.environ.get('MYSQLPASSWORD', ''),
-    'database': os.environ.get('MYSQLDATABASE', 'library_db')
+    'database': os.environ.get('MYSQLDATABASE', 'railway')
 }
 
 
