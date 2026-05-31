@@ -10,13 +10,15 @@ app.secret_key = os.environ.get('SECRET_KEY', 'libravault2024')
 _db_initialised = False
 
 # ── Database Configuration ──────────────────────────────────────────────────
+# --- Database Configuration ---
 DB_CONFIG = {
-    'host':     os.environ.get('MYSQL_HOST',     'localhost'),
-    'port': int(os.environ.get('MYSQL_PORT',     3306)),
-    'user':     os.environ.get('MYSQL_USER',     'root'),
-    'password': os.environ.get('MYSQL_PASSWORD', ''),
-    'database': os.environ.get('MYSQL_DATABASE', 'library_db')
+    'host': os.environ.get('MYSQLHOST', 'localhost'),
+    'port': int(os.environ.get('MYSQLPORT', 3306)),
+    'user': os.environ.get('MYSQLUSER', 'root'),
+    'password': os.environ.get('MYSQLPASSWORD', ''),
+    'database': os.environ.get('MYSQLDATABASE', 'library_db')
 }
+
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
